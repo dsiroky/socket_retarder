@@ -49,12 +49,11 @@ see ``./runner_example_*.sh``
 Limitations
 ===========
 Slows down only send() (TCP/IPv4, only connect() side), sendto() (UDP/IPv4), sendmsg().
-Some programs need to be run under the user root like "ping". They has setuid flag
-and there is a problem with environment/LD_PRELOAD.
+Some programs need to be run under the user root like "ping". They have a setuid flag
+and there is a problem with an environment/LD_PRELOAD.
 
 Retarder for TCP connections creates its own proxy on ports 20000-20500. So if
-you need to use those ports you have to to recompile retarder with different
+you need to use those ports you have to recompile the retarder with different
 contants PROXY_PORT_START and PROXY_PORT_STOP.
 
 And many other limitations :-)
-
