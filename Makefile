@@ -1,7 +1,7 @@
-CC = gcc
+CXX = g++
 
-CFLAGS = -g -O0 -Wall -fPIC -std=c++0x
-LDFLAGS = -shared -ldl -lstdc++ -lpthread -fPIC
+CXXFLAGS = -g -O0 -Wall -fPIC -std=c++0x
+LDFLAGS = -shared -ldl -lpthread -fPIC
 
 SRCS	= retarder.cc
 OBJS	= ${SRCS:.cc=.o}
@@ -14,10 +14,10 @@ OUTLIB = libsocket_retarder.so.1
 all: $(OUTLIB)
 
 .cc.o :
-	$(CC) $(CFLAGS) -x c++ -c $<
+	$(CXX) $(CXXFLAGS) -c $<
 
 $(OUTLIB): $(OBJS)
-	gcc -Wl,-soname,$@ $(LDFLAGS) -o $@ $(OBJS)
+	$(CXX) -Wl,-soname,$@ -o $@ $(OBJS) $(LDFLAGS)
 
 clean:
 	rm -f $(OBJS) $(OUTLIB)
