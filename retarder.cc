@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <assert.h>
 
 #include <map>
 
@@ -284,7 +285,9 @@ int transfer(int src_sock, int dst_sock)
 
 void *tcp_proxy_retarder(void *param)
 {
-  int sock = (long)param;
+  int sock = *static_cast<int*>(param);
+  free(param);
+
   int dst_sock, conn_result, transfered;
   connect_params_t orig_conn_params;
   fd_set fds, working_fds;
@@ -385,7 +388,10 @@ void *run_retarding_tcp_proxy(void *)
       err("run_retarding_tcp_proxy accept");
     }
 
-    pthread_create(&thread, NULL, tcp_proxy_retarder, (void*)incoming_sock);
+    int *p_incoming_sock = new int(incoming_sock);
+    assert(p_incoming_sock != NULL);
+    pthread_create(&thread, NULL, tcp_proxy_retarder,
+                    static_cast<void*>(p_incoming_sock));
   }
 
   return NULL;
