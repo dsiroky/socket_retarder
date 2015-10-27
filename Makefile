@@ -3,17 +3,17 @@ CXX = g++
 CXXFLAGS = -g -O0 -Wall -fPIC -std=c++0x
 LDFLAGS = -shared -ldl -lpthread -fPIC
 
-SRCS	= retarder.cc
-OBJS	= ${SRCS:.cc=.o}
+SRCS	= retarder.cpp
+OBJS	= ${SRCS:.cpp=.o}
 
 .SUFFIXES:
-.SUFFIXES: .o .cc
+.SUFFIXES: .o .cpp
 
 OUTLIB = libsocket_retarder.so.1
 
 all: $(OUTLIB)
 
-.cc.o :
+.cpp.o :
 	$(CXX) $(CXXFLAGS) -c $<
 
 $(OUTLIB): $(OBJS)
