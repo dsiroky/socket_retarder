@@ -51,7 +51,7 @@ typedef struct { int sockfd; sockaddr *addr; socklen_t addrlen; }
     connect_params_t;
 
 typedef struct { int sockfd; int flags; sockaddr_in addr; int addrlen;
-                  int buf_len; char buf; }
+                  int buf_len; char buf[64 * 1024]; }
     sendto_params_t;
 
 typedef struct { int count; pthread_cond_t cv; }
@@ -492,7 +492,7 @@ ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
   memcpy(&(params->addr), addr, sizeof(sockaddr_in));
   params->addrlen = addrlen;
   params->buf_len = len;
-  memcpy(&(params->buf), buf, len);
+  memcpy(params->buf, buf, len);
   fd_pending_increase(sockfd, len);
   pthread_create(&thread, NULL, delay_sendto, params);
 
