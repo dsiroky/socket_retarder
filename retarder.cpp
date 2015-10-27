@@ -420,7 +420,12 @@ int connect(int sockfd, const sockaddr *addr, socklen_t addrlen)
   int remote_conn_result;
   int orig_flags;
 
-  log(1, "connect fd=%i %s:%i", sockfd, inet_ntoa(((sockaddr_in*)addr)->sin_addr),
+  int sock_type = -1;
+  socklen_t opt_size = sizeof(sock_type);
+  getsockopt(sockfd, SOL_SOCKET, SO_TYPE, &sock_type, &opt_size);
+
+  log(1, "connect fd=%i SO_TYPE:%i %s:%i", sockfd, sock_type,
+      inet_ntoa(((sockaddr_in*)addr)->sin_addr),
       ntohs(((sockaddr_in*)addr)->sin_port));
 
   if (!should_retard(sockfd, addr))
