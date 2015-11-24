@@ -66,6 +66,7 @@ static psend_t realsend;
 static pclose_t realclose;
 
 static int g_tcp_proxy_port = 0;
+static int g_udp_proxy_port = 0;
 
 static bool g_retard_dns = false;
 static int g_distribution = DISTRIB_NORMAL;
@@ -87,7 +88,7 @@ static std::map<int, fd_pending_t> g_fd_pending;
 inline void log(int level, const char *fmt, ...)
 {
   va_list ap;
-  if (g_debug_level >= level) 
+  if (g_debug_level >= level)
   {
     pthread_mutex_lock(&g_log_mutex);
     fprintf(stderr, "socket_retarder: ");
@@ -120,7 +121,7 @@ void fd_pending_increase(int fd, int count)
   fd_pending_t data;
 
   pthread_mutex_lock(&g_fd_pending_mutex);
-  if (g_fd_pending.count(fd) == 0) 
+  if (g_fd_pending.count(fd) == 0)
   {
     data.count = count;
     pthread_cond_init(&data.cv, NULL);
@@ -137,7 +138,7 @@ void fd_pending_increase(int fd, int count)
 void fd_pending_increase_present(int fd, int count)
 {
   pthread_mutex_lock(&g_fd_pending_mutex);
-  if (g_fd_pending.count(fd) > 0) 
+  if (g_fd_pending.count(fd) > 0)
   {
     g_fd_pending[fd].count += count;
     log(3, "fd_pending_increase_present fd=%i +%i =%i",
@@ -151,7 +152,7 @@ void fd_pending_increase_present(int fd, int count)
 void fd_pending_decrease(int fd, int count)
 {
   pthread_mutex_lock(&g_fd_pending_mutex);
-  if (g_fd_pending.count(fd) > 0) 
+  if (g_fd_pending.count(fd) > 0)
   {
     g_fd_pending[fd].count -= count;
     if (g_fd_pending[fd].count == 0) pthread_cond_signal(&g_fd_pending[fd].cv);
@@ -195,7 +196,7 @@ int random_normal()
 
 int random_uniform()
 {
-  return (float)random() / (float)RAND_MAX * 
+  return (float)random() / (float)RAND_MAX *
           (g_uniformdist_b - g_uniformdist_a) +
           g_uniformdist_a;
 }
@@ -234,7 +235,7 @@ bool should_retard(int sockfd, const sockaddr *addr)
 
   // retard only */IPv4
   // don't retard DNS
-  if ((addr->sa_family != AF_INET) || 
+  if ((addr->sa_family != AF_INET) ||
       ((ntohs(((sockaddr_in*)addr)->sin_port) == DNS_PORT) && !g_retard_dns))
     return false;
 
@@ -332,7 +333,7 @@ void *tcp_proxy_retarder(void *param)
     if (transfered == 0)
       break;
   }
-  
+
   realclose(sock);
   realclose(dst_sock);
   return NULL;
@@ -376,7 +377,7 @@ void *run_retarding_tcp_proxy(void *)
   {
     incoming_addr_len = sizeof(incoming_addr);
     log(1, "tcp proxy accept fd=%i", sock);
-    incoming_sock = accept(sock, (sockaddr*)&incoming_addr, 
+    incoming_sock = accept(sock, (sockaddr*)&incoming_addr,
                       &incoming_addr_len);
     if (incoming_sock < 0)
     {
@@ -400,7 +401,7 @@ void *delay_sendto(void *_params)
   sendto_params_t *params = (sendto_params_t *)_params;
   log(2, "sendto fd=%i waiting", params->sockfd);
   random_sleep();
-  realsendto(params->sockfd, &(params->buf), params->buf_len, params->flags, 
+  realsendto(params->sockfd, &(params->buf), params->buf_len, params->flags,
         (sockaddr*)&(params->addr), params->addrlen);
   fd_pending_decrease(params->sockfd, params->buf_len);
   log(2, "sendto fd=%i performed", params->sockfd);
