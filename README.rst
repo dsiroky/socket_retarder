@@ -50,6 +50,9 @@ by environment variables
 ``SOCKET_RETARDER_UDP_DAMAGE_PROBABILITY``
   - 0.0..1.0, implicit 0.0
 
+``SOCKET_RETARDER_UDP_DUPLICATE_PROBABILITY``
+  - 0.0..1.0, implicit 0.0
+
 see ``./runner_example_*.sh``
 
 Limitations

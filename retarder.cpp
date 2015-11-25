@@ -40,6 +40,7 @@
 
 #define UDP_DROP_PROBABILITY 0.0
 #define UDP_DAMAGE_PROBABILITY 0.0
+#define UDP_DUPLICATE_PROBABILITY 0.0
 
 #define DEBUG_LEVEL 0
 
@@ -141,6 +142,7 @@ static int g_uniformdist_b = UNIFORMDIST_B;
 
 static float g_udp_drop_probability = UDP_DROP_PROBABILITY;
 static float g_udp_damage_probability = UDP_DAMAGE_PROBABILITY;
+static float g_udp_duplicate_probability = UDP_DUPLICATE_PROBABILITY;
 
 static int g_debug_level = DEBUG_LEVEL;
 static pthread_mutex_t g_log_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -597,6 +599,12 @@ ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
 
   udp_queue->push(data, random_sleep_value());
 
+  if (_random() < g_udp_duplicate_probability)
+  {
+    log(2, "duplicating fd:%i", sockfd);
+    udp_queue->push(data, random_sleep_value());
+  }
+
   return len;
 }
 
@@ -669,6 +677,10 @@ void load_params()
   buf = getenv("SOCKET_RETARDER_UDP_DAMAGE_PROBABILITY");
   if (buf != NULL) g_udp_damage_probability = atof(buf);
   log(1, "UDP damage probability: %f", g_udp_damage_probability);
+
+  buf = getenv("SOCKET_RETARDER_UDP_DUPLICATE_PROBABILITY");
+  if (buf != NULL) g_udp_duplicate_probability = atof(buf);
+  log(1, "UDP duplicate probability: %f", g_udp_duplicate_probability);
 
   log(1, "g_retard_dns=%i", g_retard_dns);
 
