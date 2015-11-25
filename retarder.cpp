@@ -8,7 +8,6 @@
 #include <arpa/inet.h>
 #include <dlfcn.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -16,7 +15,12 @@
 #include <stdarg.h>
 #include <assert.h>
 
+#include <algorithm>
+#include <chrono>
+#include <condition_variable>
+#include <list>
 #include <map>
+#include <thread>
 
 //===========================================================================
 
@@ -50,12 +54,68 @@ typedef int (*pclose_t)(int fd);
 typedef struct { int sockfd; sockaddr *addr; socklen_t addrlen; }
     connect_params_t;
 
-typedef struct { int sockfd; int flags; sockaddr_in addr; int addrlen;
-                  int buf_len; char buf[64 * 1024]; }
-    sendto_params_t;
-
 typedef struct { int count; pthread_cond_t cv; }
     fd_pending_t;
+
+using udp_send_data_t = struct
+{
+  int fd;
+  std::vector<char> data;
+  std::vector<char> address;
+  int flags;
+};
+
+//==========================================================================
+
+/// Priority queue by time. Very primitive version.
+template <class T>
+class TimedQueue
+{
+  public:
+    /// @param delay milliseconds
+    void push(const T& val, int delay)
+    {
+      auto when = std::chrono::system_clock::now() + std::chrono::milliseconds(delay);
+      item_t item = {when, val};
+
+      { // lock scope
+        std::unique_lock<std::mutex> lguard(m_mutex);
+        m_queue.push_back(item);
+        m_queue.sort(
+            [](const item_t &i1, const item_t &i2){ return i1.send_at < i2.send_at; });
+      }
+    }
+
+    //---------------------------------------------------------
+
+    /// Not exception safe.
+    T pop()
+    {
+      std::unique_lock<std::mutex> lguard(m_mutex);
+      do
+      {
+        m_mutex.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        m_mutex.lock();
+      } while (m_queue.empty() ||
+              m_queue.front().send_at > std::chrono::system_clock::now());
+      T val = m_queue.front().value;
+      m_queue.pop_front();
+      return val;
+    }
+
+    //---------------------------------------------------------
+
+  private:
+    using item_t = struct
+      {
+        std::chrono::time_point<std::chrono::system_clock> send_at;
+        T value;
+      };
+
+    std::list<item_t> m_queue;
+    std::mutex m_mutex;
+};
 
 //===========================================================================
 
@@ -66,7 +126,6 @@ static psend_t realsend;
 static pclose_t realclose;
 
 static int g_tcp_proxy_port = 0;
-static int g_udp_proxy_port = 0;
 
 static bool g_retard_dns = false;
 static int g_distribution = DISTRIB_NORMAL;
@@ -82,6 +141,8 @@ static pthread_mutex_t g_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static pthread_mutex_t g_fd_pending_mutex = PTHREAD_MUTEX_INITIALIZER;
 static std::map<int, fd_pending_t> g_fd_pending;
+
+static TimedQueue<udp_send_data_t> *udp_queue;
 
 //===========================================================================
 
@@ -203,16 +264,24 @@ int random_uniform()
 
 //--------------------------------------------------------------------------
 
-void random_sleep()
+int random_sleep_value()
 {
   int sleep_time;
   if (g_distribution == DISTRIB_NORMAL)
     sleep_time = random_normal();
   else
     sleep_time = random_uniform();
-  if (sleep_time <= 0) return;
   log(2, "sleeping for %i ms", sleep_time);
-  usleep(sleep_time * 1000);
+  return sleep_time;
+}
+
+//--------------------------------------------------------------------------
+
+void random_sleep()
+{
+  auto sl = random_sleep_value();
+  if (sl <= 0) return;
+  usleep(sl * 1000);
 }
 
 //--------------------------------------------------------------------------
@@ -341,7 +410,7 @@ void *tcp_proxy_retarder(void *param)
 
 //---------------------------------------------------------------------------
 
-void *run_retarding_tcp_proxy(void *)
+void run_retarding_tcp_proxy()
 {
   pthread_t thread;
   int sock, incoming_sock, port;
@@ -390,23 +459,21 @@ void *run_retarding_tcp_proxy(void *)
     pthread_create(&thread, NULL, tcp_proxy_retarder,
                     static_cast<void*>(p_incoming_sock));
   }
-
-  return NULL;
 }
 
 //---------------------------------------------------------------------------
 
-void *delay_sendto(void *_params)
+void run_retarding_sendto_udp_queue()
 {
-  sendto_params_t *params = (sendto_params_t *)_params;
-  log(2, "sendto fd=%i waiting", params->sockfd);
-  random_sleep();
-  realsendto(params->sockfd, &(params->buf), params->buf_len, params->flags,
-        (sockaddr*)&(params->addr), params->addrlen);
-  fd_pending_decrease(params->sockfd, params->buf_len);
-  log(2, "sendto fd=%i performed", params->sockfd);
-  free(params);
-  return NULL;
+  for (;;)
+  {
+    auto item = udp_queue->pop();
+    realsendto(item.fd,
+            reinterpret_cast<const void*>(item.data.data()), item.data.size(),
+            item.flags,
+            reinterpret_cast<const sockaddr*>(item.address.data()), item.address.size());
+    fd_pending_decrease(item.fd, item.data.size());
+  }
 }
 
 //===========================================================================
@@ -478,9 +545,6 @@ int connect(int sockfd, const sockaddr *addr, socklen_t addrlen)
 ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
                       const sockaddr *addr, socklen_t addrlen)
 {
-  sendto_params_t *params;
-  pthread_t thread;
-
   // handle only UDP/IPv4
   if ((addr->sa_family != AF_INET) ||
       (addr == NULL) ||
@@ -492,15 +556,15 @@ ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
   // TODO make it more like the TCP proxy because this will fail
   // if the sockfd is destroyed before the realsendto is called
 
-  params = (sendto_params_t *)malloc(sizeof(sendto_params_t) + len);
-  params->sockfd = sockfd;
-  params->flags = flags;
-  memcpy(&(params->addr), addr, sizeof(sockaddr_in));
-  params->addrlen = addrlen;
-  params->buf_len = len;
-  memcpy(params->buf, buf, len);
+  udp_send_data_t data;
+  data.fd = sockfd;
+  data.flags = flags;
+  char *_buf = reinterpret_cast<char*>(const_cast<void*>(buf));
+  data.data = std::vector<char>(_buf, _buf + len);
+  char *_address = reinterpret_cast<char*>(const_cast<sockaddr*>(addr));
+  data.address = std::vector<char>(_address, _address + addrlen);
   fd_pending_increase(sockfd, len);
-  pthread_create(&thread, NULL, delay_sendto, params);
+  udp_queue->push(data, random_sleep_value());
 
   return len;
 }
@@ -582,8 +646,6 @@ void load_params()
 static void wrap_init(void) __attribute__((constructor));
 static void wrap_init(void)
 {
-  pthread_t thread;
-
   realconnect = (pconnect_t)dlsym(RTLD_NEXT, "connect");
   realsendto = (psendto_t)dlsym(RTLD_NEXT, "sendto");
   realsendmsg = (psendmsg_t)dlsym(RTLD_NEXT, "sendmsg");
@@ -591,5 +653,7 @@ static void wrap_init(void)
   realclose = (pclose_t)dlsym(RTLD_NEXT, "close");
 
   load_params();
-  pthread_create(&thread, NULL, run_retarding_tcp_proxy, NULL);
+  udp_queue = new TimedQueue<udp_send_data_t>();
+  new std::thread(run_retarding_tcp_proxy);
+  new std::thread(run_retarding_sendto_udp_queue);
 }
