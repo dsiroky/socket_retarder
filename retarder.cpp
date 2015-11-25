@@ -38,6 +38,9 @@
 #define UNIFORMDIST_A 500
 #define UNIFORMDIST_B 1500
 
+#define UDP_DROP_PROBABILITY 0.0
+#define UDP_DAMAGE_PROBABILITY 0.0
+
 #define DEBUG_LEVEL 0
 
 //===========================================================================
@@ -135,6 +138,9 @@ static int g_normaldist_variance = NORMALDIST_VARIANCE;
 
 static int g_uniformdist_a = UNIFORMDIST_A;
 static int g_uniformdist_b = UNIFORMDIST_B;
+
+static float g_udp_drop_probability = UDP_DROP_PROBABILITY;
+static float g_udp_damage_probability = UDP_DAMAGE_PROBABILITY;
 
 static int g_debug_level = DEBUG_LEVEL;
 static pthread_mutex_t g_log_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -239,13 +245,20 @@ void fd_pending_wait_remove(int fd)
 
 //--------------------------------------------------------------------------
 
+float _random()
+{
+  return (float)random() / (float)RAND_MAX;
+}
+
+//--------------------------------------------------------------------------
+
 int random_normal()
 {
   int sleep_time = 0, i;
   float r;
   for (i = 0; i < NORMALDIST_SUMS; i++)
   {
-    r = (float)random() / (float)RAND_MAX;
+    r = _random();
     sleep_time += r * g_normaldist_variance;
   }
   sleep_time /= NORMALDIST_SUMS;
@@ -257,7 +270,7 @@ int random_normal()
 
 int random_uniform()
 {
-  return (float)random() / (float)RAND_MAX *
+  return _random() *
           (g_uniformdist_b - g_uniformdist_a) +
           g_uniformdist_a;
 }
@@ -545,6 +558,12 @@ int connect(int sockfd, const sockaddr *addr, socklen_t addrlen)
 ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
                       const sockaddr *addr, socklen_t addrlen)
 {
+  if (_random() < g_udp_drop_probability)
+  {
+    log(2, "dropping fd:%i", sockfd);
+    return len;
+  }
+
   // handle only UDP/IPv4
   if ((addr->sa_family != AF_INET) ||
       (addr == NULL) ||
@@ -564,6 +583,18 @@ ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
   char *_address = reinterpret_cast<char*>(const_cast<sockaddr*>(addr));
   data.address = std::vector<char>(_address, _address + addrlen);
   fd_pending_increase(sockfd, len);
+
+  if (_random() < g_udp_damage_probability)
+  {
+    log(2, "damaging fd:%i", sockfd);
+    size_t count = static_cast<size_t>(g_udp_damage_probability * data.data.size());
+    for (size_t i = 0; i < count; ++i)
+    {
+      size_t pos = static_cast<size_t>(_random() * data.data.size());
+      data.data[pos] = data.data[pos] ^ 0xff;
+    }
+  }
+
   udp_queue->push(data, random_sleep_value());
 
   return len;
@@ -606,6 +637,9 @@ void load_params()
   // load params from environment variables
   char *buf;
 
+  buf = getenv("SOCKET_RETARDER_DEBUG");
+  if (buf != NULL) g_debug_level = atoi(buf);
+
   buf = getenv("SOCKET_RETARDER_DNS");
   if (buf != NULL) g_retard_dns = strcmp(buf, "1") == 0;
 
@@ -628,8 +662,13 @@ void load_params()
   buf = getenv("SOCKET_RETARDER_UNIFORMDIST_B");
   if (buf != NULL) g_uniformdist_b = atoi(buf);
 
-  buf = getenv("SOCKET_RETARDER_DEBUG");
-  if (buf != NULL) g_debug_level = atoi(buf);
+  buf = getenv("SOCKET_RETARDER_UDP_DROP_PROBABILITY");
+  if (buf != NULL) g_udp_drop_probability = atof(buf);
+  log(1, "UDP drop probability: %f", g_udp_drop_probability);
+
+  buf = getenv("SOCKET_RETARDER_UDP_DAMAGE_PROBABILITY");
+  if (buf != NULL) g_udp_damage_probability = atof(buf);
+  log(1, "UDP damage probability: %f", g_udp_damage_probability);
 
   log(1, "g_retard_dns=%i", g_retard_dns);
 
