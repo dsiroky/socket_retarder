@@ -9,7 +9,7 @@ OBJS	= ${SRCS:.cpp=.o}
 .SUFFIXES:
 .SUFFIXES: .o .cpp
 
-OUTLIB = libsocket_retarder.so.1
+OUTLIB = libsocket_retarder.so
 
 all: $(OUTLIB)
 
@@ -17,7 +17,7 @@ all: $(OUTLIB)
 	$(CXX) $(CXXFLAGS) -c $<
 
 $(OUTLIB): $(OBJS)
-	$(CXX) -Wl,-soname,$@ -o $@ $(OBJS) $(LDFLAGS)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
 clean:
 	rm -f $(OBJS) $(OUTLIB)

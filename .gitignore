@@ -1,2 +1,5 @@
 *.o
+*.os
+*.so
 *.so.*
+.sconsign.dblite
