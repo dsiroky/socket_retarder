@@ -20,6 +20,7 @@
 #include <condition_variable>
 #include <list>
 #include <map>
+#include <vector>
 #include <thread>
 
 //===========================================================================
