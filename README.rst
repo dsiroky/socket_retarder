@@ -19,6 +19,13 @@ Usage
     $ export LD_PRELOAD=/path_to_the_socket_retarder/libsocket_retarder.so
     $ program_to_slow_down
 
+For Mac OS X
+------------
+::
+
+    $ DYLD_INSERT_LIBRARIES=/path_to_the_socket_retarder/libsocket_retarder.so DYLD_FORCE_FLAT_NAMESPACE=y program_to_slow_down
+
+
 Configuration
 =============
 by environment variables
