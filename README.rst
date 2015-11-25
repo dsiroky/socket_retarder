@@ -12,11 +12,11 @@ Usage
 #. Run `make` in the socket retarder directory.
 #. Run your program::
 
-    $ LD_PRELOAD=/path_to_the_socket_retarder/libsocket_retarder.so.1 program_to_slow_down
+    $ LD_PRELOAD=/path_to_the_socket_retarder/libsocket_retarder.so program_to_slow_down
 
   or::
 
-    $ export LD_PRELOAD=/path_to_the_socket_retarder/libsocket_retarder.so.1
+    $ export LD_PRELOAD=/path_to_the_socket_retarder/libsocket_retarder.so
     $ program_to_slow_down
 
 Configuration
