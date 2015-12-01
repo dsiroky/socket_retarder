@@ -4,8 +4,9 @@ See LICENSE.txt.
 
 What is it good for
 ===================
-You can artificially slow down socket traffic (TCP, UDP) of almost any program
-without any modification. Good for testing purposes.
+You can artificially slow down socket traffic (TCP, UDP) and drop/damage UDP
+datagrams for almost any program without any modification of that program. Good
+for testing purposes.
 
 Usage
 =====
@@ -52,13 +53,13 @@ by environment variables
   - implicit 1500
 
 ``SOCKET_RETARDER_UDP_DROP_PROBABILITY``
-  - 0.0..1.0, implicit 0.0
+  - probability of UDP datagram to be dropped, 0.0..1.0, implicit 0.0
 
 ``SOCKET_RETARDER_UDP_DAMAGE_PROBABILITY``
-  - 0.0..1.0, implicit 0.0
+  - probability of UDP datagram to be damaged, 0.0..1.0, implicit 0.0
 
 ``SOCKET_RETARDER_UDP_DUPLICATE_PROBABILITY``
-  - 0.0..1.0, implicit 0.0
+  - probability of UDP datagram to be duplicated, 0.0..1.0, implicit 0.0
 
 see ``./runner_example_*.sh``
 
