@@ -568,8 +568,8 @@ ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
   }
 
   // handle only UDP/IPv4
-  if ((addr->sa_family != AF_INET) ||
-      (addr == NULL) ||
+  if ((addr == NULL) ||
+      (addr->sa_family != AF_INET) ||
       ((ntohs(((sockaddr_in*)addr)->sin_port) == DNS_PORT) && !g_retard_dns))
   {
     return realsendto(sockfd, buf, len, flags, addr, addrlen);
