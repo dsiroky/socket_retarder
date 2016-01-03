@@ -151,7 +151,7 @@ static pthread_mutex_t g_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t g_fd_pending_mutex = PTHREAD_MUTEX_INITIALIZER;
 static std::map<int, fd_pending_t> g_fd_pending;
 
-static TimedQueue<udp_send_data_t> *udp_queue;
+static TimedQueue<udp_send_data_t> *g_udp_queue;
 
 //===========================================================================
 
@@ -483,7 +483,7 @@ void run_retarding_sendto_udp_queue()
 {
   for (;;)
   {
-    auto item = udp_queue->pop();
+    auto item = g_udp_queue->pop();
     realsendto(item.fd,
             reinterpret_cast<const void*>(item.data.data()), item.data.size(),
             item.flags,
@@ -598,12 +598,12 @@ ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
     }
   }
 
-  udp_queue->push(data, random_sleep_value());
+  g_udp_queue->push(data, random_sleep_value());
 
   if (_random() < g_udp_duplicate_probability)
   {
     log(2, "duplicating fd:%i", sockfd);
-    udp_queue->push(data, random_sleep_value());
+    g_udp_queue->push(data, random_sleep_value());
   }
 
   return len;
@@ -705,7 +705,7 @@ static void wrap_init(void)
   realclose = (pclose_t)dlsym(RTLD_NEXT, "close");
 
   load_params();
-  udp_queue = new TimedQueue<udp_send_data_t>();
+  g_udp_queue = new TimedQueue<udp_send_data_t>();
   new std::thread(run_retarding_tcp_proxy);
   new std::thread(run_retarding_sendto_udp_queue);
 }
