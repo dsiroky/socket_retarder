@@ -35,31 +35,31 @@ by environment variables
   - debug level - 0=none, 1=verbose, 2=more verbose
 
 ``SOCKET_RETARDER_DNS=0|1``
-  - retard communication on port 53 (implicit 0)
+  - retard communication on port 53 (default: 0)
 
 ``SOCKET_RETARDER_DISTRIBUTION=normal|uniform``
-  - implicit "normal"
+  - default: "normal"
 
 ``SOCKET_RETARDER_NORMALDIST_MEAN``
-  - implicit 1000 [ms, integer]
+  - default: 1000 [ms, integer]
 
 ``SOCKET_RETARDER_NORMALDIST_VARIANCE``
-  - implicit 500 [ms, integer]
+  - default: 500 [ms, integer]
 
 ``SOCKET_RETARDER_UNIFORMDIST_A``
-  - implicit 500
+  - default: 500
 
 ``SOCKET_RETARDER_UNIFORMDIST_B``
-  - implicit 1500
+  - default: 1500
 
 ``SOCKET_RETARDER_UDP_DROP_PROBABILITY``
-  - probability of UDP datagram to be dropped, 0.0..1.0, implicit 0.0
+  - probability of UDP datagram to be dropped, 0.0..1.0, default: 0.0
 
 ``SOCKET_RETARDER_UDP_DAMAGE_PROBABILITY``
-  - probability of UDP datagram to be damaged, 0.0..1.0, implicit 0.0
+  - probability of UDP datagram to be damaged, 0.0..1.0, default: 0.0
 
 ``SOCKET_RETARDER_UDP_DUPLICATE_PROBABILITY``
-  - probability of UDP datagram to be duplicated, 0.0..1.0, implicit 0.0
+  - probability of UDP datagram to be duplicated, 0.0..1.0, default: 0.0
 
 see ``./runner_example_*.sh``
 
