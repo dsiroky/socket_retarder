@@ -63,6 +63,13 @@ by environment variables
 
 see ``./runner_example_*.sh``
 
+Java workaround
+===============
+If you don't experience an influence of the retarder then execute your program with a following flag::
+
+  $ java -Djava.net.preferIPv4Stack=true ...
+
+
 Limitations
 ===========
 Slows down only send() (TCP/IPv4, only connect() side), sendto() (UDP/IPv4), sendmsg().
