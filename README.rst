@@ -4,9 +4,9 @@ See LICENSE.txt.
 
 What is it good for
 ===================
-You can artificially slow down socket traffic (TCP, UDP) and drop/damage UDP
-datagrams for almost any program without any modification of that program. Good
-for testing purposes.
+You can artificially slow down socket traffic (TCP, UDP) and
+drop/duplicate/damage/shuffle UDP datagrams for almost any program without any
+modification of that program. Good for testing purposes.
 
 Usage
 =====
